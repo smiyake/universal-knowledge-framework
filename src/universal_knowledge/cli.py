@@ -13,6 +13,7 @@ from typing import Optional
 from .core.manager import KnowledgeManager
 from .core.project import ProjectManager
 from .core.task import TaskManager
+from .core.analytics import ProjectAnalytics
 from .ai_commands import create_ai_cli_group
 
 
@@ -202,6 +203,154 @@ def complete(task_id: str):
         click.echo(f"✅ タスク {task_id} を完了しました")
     except Exception as e:
         click.echo(f"❌ タスク完了エラー: {e}", err=True)
+        sys.exit(1)
+
+
+@main.group()
+def stats():
+    """プロジェクト統計情報"""
+    pass
+
+
+@stats.command()
+@click.option("--path", "-p", default=None, help="プロジェクトパス (デフォルト: 現在のディレクトリ)")
+@click.option("--no-cache", is_flag=True, help="キャッシュを使用しない")
+def files(path: Optional[str], no_cache: bool):
+    """ファイル統計情報を表示"""
+    try:
+        analytics = ProjectAnalytics(path)
+        stats = analytics.get_file_statistics(use_cache=not no_cache)
+        
+        click.echo(f"📊 ファイル統計 - {analytics.project_path.name}")
+        click.echo(f"📁 総ファイル数: {stats['total_files']:,}")
+        click.echo(f"📂 総ディレクトリ数: {stats['total_directories']:,}")
+        click.echo(f"💾 総サイズ: {stats['total_size_bytes'] / (1024*1024):.1f} MB")
+        click.echo(f"⏱️  処理時間: {stats['processing_time']:.2f}秒")
+        
+        click.echo("\n📈 ファイルタイプ別 (上位10):")
+        for ext, count in sorted(stats['file_types'].items(), 
+                                key=lambda x: x[1], reverse=True)[:10]:
+            click.echo(f"  {ext or 'なし'}: {count:,}")
+        
+        click.echo("\n📊 カテゴリ別:")
+        for category, count in sorted(stats['file_categories'].items(),
+                                    key=lambda x: x[1], reverse=True):
+            click.echo(f"  {category}: {count:,}")
+            
+    except Exception as e:
+        click.echo(f"❌ ファイル統計エラー: {e}", err=True)
+        sys.exit(1)
+
+
+@stats.command()
+@click.option("--path", "-p", default=None, help="プロジェクトパス")
+@click.option("--days", "-d", default=30, help="分析対象の日数")
+def activity(path: Optional[str], days: int):
+    """プロジェクトアクティビティを表示"""
+    try:
+        analytics = ProjectAnalytics(path)
+        activity = analytics.get_activity_patterns(days)
+        
+        click.echo(f"🔥 アクティビティパターン ({days}日間) - {analytics.project_path.name}")
+        
+        if activity['recent_changes']:
+            click.echo(f"\n📝 最近の変更 ({len(activity['recent_changes'])}件):")
+            for change in activity['recent_changes'][:10]:
+                click.echo(f"  {change['path']} ({change['modified'][:10]})")
+        
+        if activity['most_active_files']:
+            click.echo(f"\n🎯 最も活発なファイル:")
+            for file_info in activity['most_active_files'][:5]:
+                click.echo(f"  {file_info['path']}: {file_info['modifications']}回")
+        
+        if activity['growth_rate']:
+            growth = activity['growth_rate']
+            click.echo(f"\n📈 成長率:")
+            click.echo(f"  週間変化: {growth['weekly_change']:+d}ファイル")
+            click.echo(f"  成長率: {growth['percentage']:+.1f}%")
+            
+    except Exception as e:
+        click.echo(f"❌ アクティビティ分析エラー: {e}", err=True)
+        sys.exit(1)
+
+
+@stats.command()
+@click.option("--path", "-p", default=None, help="プロジェクトパス")
+def summary(path: Optional[str]):
+    """プロジェクトサマリーを表示"""
+    try:
+        analytics = ProjectAnalytics(path)
+        summary = analytics.get_project_summary()
+        
+        click.echo(f"📋 プロジェクトサマリー")
+        click.echo(f"🏷️  名前: {summary['project_name']}")
+        click.echo(f"📁 パス: {summary['project_path']}")
+        click.echo(f"📊 ファイル数: {summary['total_files']:,}")
+        click.echo(f"📂 ディレクトリ数: {summary['total_directories']:,}")
+        click.echo(f"💾 サイズ: {summary['total_size_mb']} MB")
+        click.echo(f"🔤 主要言語: {summary['primary_language']}")
+        click.echo(f"🕒 最終更新: {summary['last_updated'][:19]}")
+        
+        activity_summary = summary['activity_summary']
+        click.echo(f"\n🎯 アクティビティ:")
+        click.echo(f"  最近の変更: {activity_summary['recent_files_modified']}件")
+        if activity_summary['most_active_hour'] is not None:
+            click.echo(f"  最活発時間: {activity_summary['most_active_hour']}時")
+        click.echo(f"  成長トレンド: {activity_summary['growth_trend']:+.1f}%")
+        
+    except Exception as e:
+        click.echo(f"❌ サマリー生成エラー: {e}", err=True)
+        sys.exit(1)
+
+
+@stats.command()
+@click.option("--path", "-p", default=None, help="プロジェクトパス")
+@click.option("--format", "-f", default="json", 
+              type=click.Choice(['json', 'markdown', 'csv']),
+              help="出力形式")
+@click.option("--output", "-o", default=None, help="出力ファイルパス")
+def export(path: Optional[str], format: str, output: Optional[str]):
+    """統計情報をエクスポート"""
+    try:
+        analytics = ProjectAnalytics(path)
+        output_file = analytics.export_statistics(format, output)
+        
+        click.echo(f"📤 統計情報をエクスポートしました")
+        click.echo(f"📁 ファイル: {output_file}")
+        click.echo(f"📄 形式: {format}")
+        
+    except Exception as e:
+        click.echo(f"❌ エクスポートエラー: {e}", err=True)
+        sys.exit(1)
+
+
+@stats.command()
+@click.argument("file_path")
+@click.option("--project-path", "-p", default=None, help="プロジェクトパス")
+def analyze(file_path: str, project_path: Optional[str]):
+    """特定ファイルの詳細分析"""
+    try:
+        analytics = ProjectAnalytics(project_path)
+        analysis = analytics.analyze_file_complexity(file_path)
+        
+        click.echo(f"🔍 ファイル分析: {analysis['file_path']}")
+        click.echo(f"💾 サイズ: {analysis['size_bytes']:,} bytes")
+        click.echo(f"🕒 最終更新: {analysis['last_modified'][:19]}")
+        
+        if 'lines' in analysis:
+            click.echo(f"📝 行数: {analysis['lines']:,}")
+            click.echo(f"🔤 文字数: {analysis['characters']:,}")
+        
+        if 'code_metrics' in analysis:
+            metrics = analysis['code_metrics']
+            click.echo(f"\n📊 コードメトリクス:")
+            click.echo(f"  総行数: {metrics['total_lines']:,}")
+            click.echo(f"  コード行: {metrics['code_lines']:,}")
+            click.echo(f"  コメント行: {metrics['comment_lines']:,}")
+            click.echo(f"  空行: {metrics['blank_lines']:,}")
+            
+    except Exception as e:
+        click.echo(f"❌ ファイル分析エラー: {e}", err=True)
         sys.exit(1)
 
 
