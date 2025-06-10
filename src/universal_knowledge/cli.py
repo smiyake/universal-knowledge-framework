@@ -14,7 +14,10 @@ from .core.manager import KnowledgeManager
 from .core.project import ProjectManager
 from .core.task import TaskManager
 from .core.analytics import ProjectAnalytics
+from .core.bridge import BridgeManager, StandardDataFormat
+from .core.obsidian_adapter import ObsidianAdapter
 from .ai_commands import create_ai_cli_group
+from .templates import DynamicTemplateEngine, TemplateManager
 
 
 @click.group()
