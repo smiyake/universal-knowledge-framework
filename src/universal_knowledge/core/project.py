@@ -337,12 +337,18 @@ jupyter>=1.0.0
             json.dump(project_config, f, indent=2, ensure_ascii=False)
     
     def _initialize_git(self, project_path: Path) -> None:
-        """Gitリポジトリを初期化"""
-        try:
-            os.chdir(project_path)
-            os.system("git init")
-            os.system("git add .")
-            os.system('git commit -m "初期コミット: プロジェクト作成 🚀"')
-        except Exception:
-            # Git初期化に失敗しても続行
-            pass
+        """Gitリポジトリを初期化（改善版）"""
+        from .git_utils import GitManager
+        
+        git_manager = GitManager()
+        success = git_manager.initialize_repository(
+            project_path, 
+            "初期コミット: プロジェクト作成 🚀"
+        )
+        
+        if not success:
+            print("\n💡 Gitリポジトリは後で手動で初期化できます:")
+            print(f"   cd {project_path}")
+            print("   git init")
+            print("   git add .")
+            print("   git commit -m \"初期コミット: プロジェクト作成 🚀\"")
