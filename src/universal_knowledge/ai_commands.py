@@ -10,6 +10,9 @@ from pathlib import Path
 from typing import Optional
 
 from .ai_migration import AIMigrationSystem, MigrationStrategy
+from .ai.session_tracker import SessionTracker
+from .ai.claude_manager import ClaudeManager
+from .ai.auto_updater import AutoUpdateManager
 
 
 class AICommands:
@@ -17,20 +20,27 @@ class AICommands:
     
     def __init__(self):
         self.ai_system = AIMigrationSystem()
+        self.session_tracker = SessionTracker()
+        self.claude_manager = ClaudeManager()
+        self.auto_updater = AutoUpdateManager()
 
     def create_cli_group(self) -> click.Group:
         """AI CLIコマンドグループを作成"""
         
         @click.group(name='ai')
         def ai_group():
-            """🤖 AI駆動ドキュメント変換・解析機能"""
+            """🤖 AI駆動ドキュメント変換・解析・開発支援機能"""
             pass
         
-        # サブコマンドを追加
+        # 既存のサブコマンド
         ai_group.add_command(self._create_analyze_command())
         ai_group.add_command(self._create_migrate_command())
         ai_group.add_command(self._create_plan_command())
         ai_group.add_command(self._create_report_command())
+        
+        # 新機能サブコマンド
+        ai_group.add_command(self._create_session_group())
+        ai_group.add_command(self._create_claude_group())
         
         return ai_group
 
@@ -326,6 +336,272 @@ class AICommands:
                 sys.exit(1)
         
         return report
+
+    def _create_session_group(self) -> click.Group:
+        """セッション管理コマンドグループ"""
+        
+        @click.group(name='session')
+        def session_group():
+            """📝 AI開発セッション管理"""
+            pass
+        
+        @session_group.command()
+        @click.option('--type', '-t', default='implementation', 
+                     type=click.Choice(['implementation', 'debugging', 'refactoring', 'research']),
+                     help='セッションタイプ')
+        @click.option('--description', '-d', default='', help='セッション説明')
+        @click.argument('project_path', default='.', required=False)
+        def start(type: str, description: str, project_path: str):
+            """AI開発セッション開始"""
+            try:
+                project_path_obj = Path(project_path)
+                tracker = SessionTracker(project_path_obj)
+                
+                session_id = tracker.start_session(type, description)
+                click.echo(f"✅ セッション開始: {session_id}")
+                click.echo(f"📁 プロジェクト: {project_path_obj.resolve()}")
+                click.echo(f"🎯 タイプ: {type}")
+                if description:
+                    click.echo(f"📝 説明: {description}")
+                    
+            except Exception as e:
+                click.echo(f"❌ セッション開始エラー: {e}", err=True)
+                sys.exit(1)
+        
+        @session_group.command()
+        @click.argument('session_id')
+        @click.option('--summary', '-s', default='', help='セッションサマリー')
+        def end(session_id: str, summary: str):
+            """AI開発セッション終了"""
+            try:
+                tracker = SessionTracker()
+                success = tracker.end_session(session_id, summary)
+                
+                if success:
+                    click.echo(f"✅ セッション終了: {session_id}")
+                    if summary:
+                        click.echo(f"📄 サマリー: {summary}")
+                else:
+                    click.echo(f"❌ セッション {session_id} が見つかりません", err=True)
+                    sys.exit(1)
+                    
+            except Exception as e:
+                click.echo(f"❌ セッション終了エラー: {e}", err=True)
+                sys.exit(1)
+        
+        @session_group.command()
+        @click.option('--status', type=click.Choice(['active', 'completed']), help='ステータスフィルター')
+        @click.option('--limit', '-n', default=10, help='表示件数')
+        def list(status: Optional[str], limit: int):
+            """セッション一覧表示"""
+            try:
+                tracker = SessionTracker()
+                sessions = tracker.list_sessions(status, limit)
+                
+                if not sessions:
+                    click.echo("📭 セッションがありません")
+                    return
+                
+                click.echo(f"📋 セッション一覧 ({len(sessions)}件)")
+                for session in sessions:
+                    status_emoji = "🟢" if session['status'] == 'active' else "🔵"
+                    click.echo(f"{status_emoji} {session['session_id']} - {session['type']}")
+                    click.echo(f"    📅 {session['start_time'][:19]}")
+                    if session.get('description'):
+                        click.echo(f"    📝 {session['description']}")
+                    
+            except Exception as e:
+                click.echo(f"❌ セッション一覧エラー: {e}", err=True)
+                sys.exit(1)
+        
+        @session_group.command()
+        @click.argument('session_id')
+        def report(session_id: str):
+            """セッションレポート生成"""
+            try:
+                tracker = SessionTracker()
+                report_content = tracker.generate_session_report(session_id)
+                
+                if "が見つかりません" in report_content:
+                    click.echo(f"❌ {report_content}", err=True)
+                    sys.exit(1)
+                
+                click.echo(report_content)
+                
+            except Exception as e:
+                click.echo(f"❌ レポート生成エラー: {e}", err=True)
+                sys.exit(1)
+        
+        @session_group.command()
+        @click.argument('session_id')
+        @click.argument('milestone')
+        def milestone(session_id: str, milestone: str):
+            """セッションマイルストーン追加"""
+            try:
+                tracker = SessionTracker()
+                success = tracker.add_milestone(session_id, milestone)
+                
+                if success:
+                    click.echo(f"✅ マイルストーン追加: {milestone}")
+                else:
+                    click.echo(f"❌ セッション {session_id} が見つかりません", err=True)
+                    sys.exit(1)
+                    
+            except Exception as e:
+                click.echo(f"❌ マイルストーン追加エラー: {e}", err=True)
+                sys.exit(1)
+        
+        return session_group
+
+    def _create_claude_group(self) -> click.Group:
+        """Claude管理コマンドグループ"""
+        
+        @click.group(name='claude')
+        def claude_group():
+            """🤖 Claude Code連携・CLAUDE.md管理"""
+            pass
+        
+        @claude_group.command()
+        @click.argument('project_path', default='.', required=False)
+        @click.option('--force', is_flag=True, help='既存ファイルを上書き')
+        def init(project_path: str, force: bool):
+            """CLAUDE.md初期化"""
+            try:
+                project_path_obj = Path(project_path)
+                manager = ClaudeManager(project_path_obj)
+                
+                success = manager.initialize_claude_md(force)
+                
+                if success:
+                    click.echo(f"✅ CLAUDE.md初期化完了: {project_path_obj / 'CLAUDE.md'}")
+                else:
+                    click.echo("ℹ️ CLAUDE.mdは既に存在します (--force で上書き可能)")
+                    
+            except Exception as e:
+                click.echo(f"❌ 初期化エラー: {e}", err=True)
+                sys.exit(1)
+        
+        @claude_group.command()
+        @click.argument('project_path', default='.', required=False)
+        @click.option('--auto', is_flag=True, help='自動更新機能を開始')
+        def update(project_path: str, auto: bool):
+            """CLAUDE.md更新・自動更新開始"""
+            try:
+                project_path_obj = Path(project_path)
+                
+                if auto:
+                    updater = AutoUpdateManager(project_path_obj)
+                    success = updater.start_monitoring()
+                    
+                    if success:
+                        click.echo(f"🔄 CLAUDE.md自動更新開始: {project_path_obj}")
+                        click.echo("ファイル変更を監視中... (Ctrl+Cで停止)")
+                        
+                        try:
+                            while updater.is_monitoring():
+                                import time
+                                time.sleep(1)
+                        except KeyboardInterrupt:
+                            updater.stop_monitoring()
+                            click.echo("\n✅ 自動更新を停止しました")
+                    else:
+                        click.echo("❌ 自動更新開始に失敗しました", err=True)
+                        sys.exit(1)
+                else:
+                    manager = ClaudeManager(project_path_obj)
+                    context = {"manual_update": True}
+                    success = manager.update_development_context(context)
+                    
+                    if success:
+                        click.echo(f"✅ CLAUDE.md更新完了: {project_path_obj / 'CLAUDE.md'}")
+                    else:
+                        click.echo("❌ 更新に失敗しました", err=True)
+                        sys.exit(1)
+                        
+            except Exception as e:
+                click.echo(f"❌ 更新エラー: {e}", err=True)
+                sys.exit(1)
+        
+        @claude_group.command()
+        @click.argument('project_path', default='.', required=False)
+        def optimize(project_path: str):
+            """CLAUDE.md最適化"""
+            try:
+                project_path_obj = Path(project_path)
+                manager = ClaudeManager(project_path_obj)
+                
+                result = manager.optimize_claude_md()
+                
+                if "error" in result:
+                    click.echo(f"❌ {result['error']}", err=True)
+                    sys.exit(1)
+                
+                click.echo("✅ CLAUDE.md最適化完了")
+                for optimization in result['optimizations']:
+                    click.echo(f"  - {optimization}")
+                
+                sections_count = result.get('sections_count', 0)
+                click.echo(f"📊 セクション数: {sections_count}")
+                
+            except Exception as e:
+                click.echo(f"❌ 最適化エラー: {e}", err=True)
+                sys.exit(1)
+        
+        @claude_group.command()
+        @click.argument('project_path', default='.', required=False)
+        def validate(project_path: str):
+            """CLAUDE.md検証"""
+            try:
+                project_path_obj = Path(project_path)
+                manager = ClaudeManager(project_path_obj)
+                
+                result = manager.validate_claude_md()
+                
+                if result['valid']:
+                    click.echo("✅ CLAUDE.mdは有効です")
+                else:
+                    click.echo("❌ CLAUDE.mdに問題があります")
+                    for error in result['errors']:
+                        click.echo(f"  エラー: {error}")
+                
+                if result['warnings']:
+                    for warning in result['warnings']:
+                        click.echo(f"  警告: {warning}")
+                
+                click.echo(f"📊 セクション数: {result['sections_count']}")
+                click.echo(f"💾 ファイルサイズ: {result['file_size']} bytes")
+                
+            except Exception as e:
+                click.echo(f"❌ 検証エラー: {e}", err=True)
+                sys.exit(1)
+        
+        @claude_group.command()
+        @click.argument('pattern_name')
+        @click.argument('description')
+        @click.option('--example', '-e', default='', help='使用例')
+        @click.option('--tags', '-t', default='', help='タグ (カンマ区切り)')
+        @click.argument('project_path', default='.', required=False)
+        def pattern(pattern_name: str, description: str, example: str, tags: str, project_path: str):
+            """開発パターン追加"""
+            try:
+                project_path_obj = Path(project_path)
+                manager = ClaudeManager(project_path_obj)
+                
+                tags_list = [tag.strip() for tag in tags.split(',') if tag.strip()] if tags else []
+                
+                success = manager.add_development_pattern(pattern_name, description, example, tags_list)
+                
+                if success:
+                    click.echo(f"✅ 開発パターン追加: {pattern_name}")
+                else:
+                    click.echo("❌ パターン追加に失敗しました", err=True)
+                    sys.exit(1)
+                    
+            except Exception as e:
+                click.echo(f"❌ パターン追加エラー: {e}", err=True)
+                sys.exit(1)
+        
+        return claude_group
 
 
 # モジュールレベルでのエクスポート
