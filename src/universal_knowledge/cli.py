@@ -13,6 +13,7 @@ from typing import Optional
 from .core.manager import KnowledgeManager
 from .core.project import ProjectManager
 from .core.task import TaskManager
+from .ai_commands import create_ai_cli_group
 
 
 @click.group()
@@ -20,6 +21,10 @@ from .core.task import TaskManager
 def main():
     """汎用ナレッジ管理フレームワーク - あらゆるプロジェクトで利用可能な文書管理システム"""
     pass
+
+
+# AI機能を統合
+main.add_command(create_ai_cli_group())
 
 
 @main.command()

@@ -11,9 +11,13 @@ __author__ = "Universal Knowledge Contributors"
 from .core.manager import KnowledgeManager
 from .core.project import ProjectManager
 from .core.task import TaskManager
+from .ai_migration import AIMigrationSystem
+from .ai_commands import AICommands
 
 __all__ = [
     "KnowledgeManager",
     "ProjectManager", 
     "TaskManager",
+    "AIMigrationSystem",
+    "AICommands",
 ]
