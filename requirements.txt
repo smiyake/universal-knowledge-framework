@@ -1,0 +1,24 @@
+# 汎用ナレッジ管理フレームワーク - 依存関係
+# Universal Knowledge Framework - Dependencies
+
+# 基本依存関係
+click>=8.0.0              # CLI インターフェース
+gitpython>=3.1.0          # Git操作
+pathlib2>=2.3.0           # パス操作（Python 3.8対応）
+pyyaml>=6.0               # YAML設定ファイル
+jinja2>=3.0.0             # テンプレートエンジン
+
+# 開発・テスト依存関係（オプション）
+# pip install -r requirements.txt[dev] でインストール
+
+# pytest>=7.0.0           # テストフレームワーク
+# black>=22.0.0            # コードフォーマッター
+# flake8>=4.0.0            # コード品質チェック
+# mypy>=0.950              # 型チェック
+
+# AI機能依存関係（オプション）
+# pip install -r requirements.txt[ai] でインストール
+
+# openai>=1.0.0            # OpenAI API（将来のAI機能用）
+# sentence-transformers>=2.0.0  # 文書埋め込み（検索機能用）
+# numpy>=1.20.0            # 数値計算（AI機能用）
