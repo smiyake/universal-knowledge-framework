@@ -1,0 +1,26 @@
+# PyPI配布用ファイル指定
+# Files to include in PyPI distribution
+
+include README.md
+include LICENSE
+include SETUP_GUIDE.md
+include requirements.txt
+
+# テンプレートファイル
+recursive-include src/universal_knowledge/templates *
+
+# プロジェクトテンプレート
+recursive-include project_templates *
+
+# 設定ファイル
+include pyproject.toml
+
+# ドキュメント
+recursive-include docs *
+
+# 除外ファイル
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude __pycache__
+global-exclude .git*
+global-exclude .DS_Store

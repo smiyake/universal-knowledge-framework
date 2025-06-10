@@ -7,7 +7,7 @@ setup(
     long_description=open("README.md", encoding="utf-8").read(),
     long_description_content_type="text/markdown",
     author="株式会社CGin財 (CGin-Zai Co., Ltd.)",
-    url="https://github.com/USER/REPOSITORY",  # ユーザーが各自設定してください
+    url="https://github.com/smiyake/universal-knowledge-framework",
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     include_package_data=True,

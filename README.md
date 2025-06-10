@@ -22,9 +22,25 @@
 
 ## インストール
 
+### PyPI経由（推奨）
+
 ```bash
 pip install universal-knowledge-framework
 ```
+
+### ソースから
+
+```bash
+git clone https://github.com/smiyake/universal-knowledge-framework.git
+cd universal-knowledge-framework
+pip install -e .
+```
+
+### Template Repositoryとして利用
+
+1. GitHubで **"Use this template"** ボタンをクリック
+2. 新しいリポジトリを作成
+3. カスタマイズして利用
 
 ## 基本的な使用方法
 
