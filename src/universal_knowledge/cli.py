@@ -357,6 +357,214 @@ def analyze(file_path: str, project_path: Optional[str]):
         sys.exit(1)
 
 
+@main.group()
+def template():
+    """テンプレート管理"""
+    pass
+
+
+@template.command()
+@click.argument("template_type")
+@click.option("--context", default="auto", help="プロジェクトコンテキスト (auto, manual)")
+@click.option("--language", "-l", default="ja", type=click.Choice(['ja', 'en']), help="言語")
+@click.option("--format", "-f", default="markdown", 
+              type=click.Choice(['markdown', 'json', 'yaml', 'html']), help="出力形式")
+@click.option("--output", "-o", default=None, help="出力ファイルパス")
+@click.argument("project_path", default=".", required=False)
+def generate(template_type: str, context: str, language: str, format: str, output: Optional[str], project_path: str):
+    """コンテキスト認識テンプレートを生成します"""
+    try:
+        click.echo(f"🎯 テンプレート生成: {template_type}")
+        
+        # Get project context
+        if context == "auto":
+            project_manager = ProjectManager()
+            project_context = project_manager.detect_project_context(Path(project_path))
+        else:
+            project_context = {"name": "Manual Project", "type": "basic", "path": project_path}
+        
+        # Generate template
+        engine = DynamicTemplateEngine()
+        template_content = engine.generate_context_aware_template(
+            template_type, project_context, language, format
+        )
+        
+        # Output result
+        if output:
+            output_path = Path(output)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(output_path, 'w', encoding='utf-8') as f:
+                f.write(template_content)
+            click.echo(f"✅ テンプレートを保存しました: {output_path}")
+        else:
+            click.echo(f"📄 生成されたテンプレート:\n")
+            click.echo(template_content)
+        
+    except Exception as e:
+        click.echo(f"❌ テンプレート生成エラー: {e}", err=True)
+        sys.exit(1)
+
+
+@template.command()
+@click.argument("name")
+@click.option("--type", "-t", default="custom", help="テンプレートタイプ")
+@click.option("--file", "-f", default=None, help="テンプレートファイルパス")
+@click.option("--content", "-c", default=None, help="テンプレート内容")
+def create(name: str, type: str, file: Optional[str], content: Optional[str]):
+    """カスタムテンプレートを作成します"""
+    try:
+        manager = TemplateManager()
+        
+        # Get template content
+        if file:
+            template_path = Path(file)
+            if not template_path.exists():
+                click.echo(f"❌ ファイルが見つかりません: {file}", err=True)
+                sys.exit(1)
+            with open(template_path, 'r', encoding='utf-8') as f:
+                template_content = f.read()
+        elif content:
+            template_content = content
+        else:
+            click.echo("❌ --file または --content のいずれかを指定してください", err=True)
+            sys.exit(1)
+        
+        # Create metadata
+        metadata = {
+            "type": type,
+            "created_by": "ukf-cli",
+            "description": f"Custom template: {name}"
+        }
+        
+        if manager.register_custom_template(name, template_content, metadata, type):
+            click.echo(f"✅ カスタムテンプレート '{name}' を作成しました")
+        else:
+            click.echo(f"❌ テンプレート作成に失敗しました", err=True)
+            sys.exit(1)
+        
+    except Exception as e:
+        click.echo(f"❌ テンプレート作成エラー: {e}", err=True)
+        sys.exit(1)
+
+
+@template.command()
+@click.option("--filter", "-f", default=None, help="テンプレートタイプフィルタ")
+@click.option("--search", "-s", default=None, help="検索クエリ")
+def list(filter: Optional[str], search: Optional[str]):
+    """テンプレート一覧を表示します"""
+    try:
+        manager = TemplateManager()
+        
+        if search:
+            templates = manager.search_templates(search)
+            click.echo(f"🔍 検索結果: '{search}'")
+        else:
+            templates = manager.list_templates(filter)
+            if filter:
+                click.echo(f"📋 テンプレート一覧 (フィルタ: {filter})")
+            else:
+                click.echo("📋 テンプレート一覧")
+        
+        if not templates:
+            click.echo("📝 テンプレートがありません")
+            return
+        
+        for template in templates:
+            type_emoji = {"base": "🏗️", "custom": "🎨", "imported": "📥"}.get(template.get("type"), "📄")
+            click.echo(f"{type_emoji} {template['name']} ({template.get('type', 'unknown')})")
+            if template.get('metadata'):
+                desc = template['metadata'].get('description', '')
+                if desc:
+                    click.echo(f"    {desc}")
+        
+    except Exception as e:
+        click.echo(f"❌ テンプレート一覧エラー: {e}", err=True)
+        sys.exit(1)
+
+
+@template.command()
+@click.argument("template_path")
+def validate(template_path: str):
+    """テンプレートの妥当性を検証します"""
+    try:
+        engine = DynamicTemplateEngine()
+        result = engine.validate_template(template_path)
+        
+        click.echo(f"🔍 テンプレート検証: {template_path}")
+        
+        if result['valid']:
+            click.echo("✅ テンプレートは有効です")
+        else:
+            click.echo("❌ テンプレートに問題があります")
+            for error in result['errors']:
+                click.echo(f"  エラー: {error}")
+        
+        if result['warnings']:
+            for warning in result['warnings']:
+                click.echo(f"  警告: {warning}")
+        
+        if result['metadata']:
+            metadata = result['metadata']
+            click.echo(f"📊 メタデータ:")
+            click.echo(f"  ファイルサイズ: {metadata.get('file_size', 0)} bytes")
+            click.echo(f"  最終更新: {metadata.get('last_modified', 'Unknown')}")
+        
+    except Exception as e:
+        click.echo(f"❌ テンプレート検証エラー: {e}", err=True)
+        sys.exit(1)
+
+
+@template.command()
+@click.argument("project_path", default=".", required=False)
+@click.option("--limit", "-n", default=5, help="推奨テンプレート数")
+def recommend(project_path: str, limit: int):
+    """プロジェクトに適したテンプレートを推奨します"""
+    try:
+        # Get project context
+        project_manager = ProjectManager()
+        project_context = project_manager.detect_project_context(Path(project_path))
+        
+        # Get recommendations
+        manager = TemplateManager()
+        recommendations = manager.get_recommended_templates(project_context)
+        
+        click.echo(f"🎯 プロジェクト '{project_context.get('name', 'Unknown')}' への推奨テンプレート:")
+        click.echo(f"📁 プロジェクトタイプ: {project_context.get('type', 'unknown')}")
+        
+        if not recommendations:
+            click.echo("📝 推奨テンプレートがありません")
+            return
+        
+        for i, template in enumerate(recommendations[:limit], 1):
+            score = template.get('relevance_score', 0)
+            type_emoji = {"base": "🏗️", "custom": "🎨", "imported": "📥"}.get(template.get("type"), "📄")
+            click.echo(f"{i}. {type_emoji} {template['name']} (関連度: {score:.1f})")
+            if template.get('metadata', {}).get('description'):
+                click.echo(f"    {template['metadata']['description']}")
+        
+    except Exception as e:
+        click.echo(f"❌ テンプレート推奨エラー: {e}", err=True)
+        sys.exit(1)
+
+
+@template.command()
+@click.argument("name")
+def delete(name: str):
+    """カスタムテンプレートを削除します"""
+    try:
+        manager = TemplateManager()
+        
+        if manager.delete_template(name):
+            click.echo(f"✅ テンプレート '{name}' を削除しました")
+        else:
+            click.echo(f"❌ テンプレート '{name}' が見つかりません", err=True)
+            sys.exit(1)
+        
+    except Exception as e:
+        click.echo(f"❌ テンプレート削除エラー: {e}", err=True)
+        sys.exit(1)
+
+
 @main.command()
 def version():
     """バージョン情報を表示します"""
