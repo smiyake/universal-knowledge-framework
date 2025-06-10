@@ -1,0 +1,61 @@
+# Session Record - {{ project_name }}
+
+**Project:** {{ project_name }}
+**Date:** {{ date }}
+**Time:** {{ time }}
+**Phase:** {{ project_phase }}
+
+## Session Overview
+
+### Purpose
+
+
+### Participants
+{% if team_members %}
+{% for member in team_members %}
+- {{ member }}
+{% endfor %}
+{% else %}
+- Individual work
+{% endif %}
+
+## Activities
+
+### Main Tasks
+
+
+### Deliverables
+
+
+### Issues & Problems
+
+
+## Action Items
+
+- [ ] 
+- [ ] 
+- [ ] 
+
+## Technical Notes
+
+{% if tech_stack %}
+**Technology Stack:** {{ tech_stack | join(", ") }}
+{% endif %}
+{% if frameworks %}
+**Frameworks:** {{ frameworks | join(", ") }}
+{% endif %}
+
+## References
+
+
+---
+*🤖 Generated with Universal Knowledge Framework - {{ timestamp }}*
+
+**Project Information:**
+- Type: {{ project_type }}
+- Path: {{ project_path }}
+{% if custom_fields %}
+{% for key, value in custom_fields.items() %}
+- {{ key }}: {{ value }}
+{% endfor %}
+{% endif %}

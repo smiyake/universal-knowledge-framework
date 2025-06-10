@@ -1,0 +1,61 @@
+# セッション記録 - {{ project_name }}
+
+**プロジェクト:** {{ project_name }}
+**日付:** {{ date }}
+**時刻:** {{ time }}
+**フェーズ:** {{ project_phase }}
+
+## セッション概要
+
+### 目的
+
+
+### 参加者
+{% if team_members %}
+{% for member in team_members %}
+- {{ member }}
+{% endfor %}
+{% else %}
+- {{ strings.get('individual_work', '個人作業') }}
+{% endif %}
+
+## 実施内容
+
+### 主な作業
+
+
+### 成果物
+
+
+### 課題・問題点
+
+
+## 次回までのアクション
+
+- [ ] 
+- [ ] 
+- [ ] 
+
+## 技術メモ
+
+{% if tech_stack %}
+**使用技術:** {{ tech_stack | join(", ") }}
+{% endif %}
+{% if frameworks %}
+**フレームワーク:** {{ frameworks | join(", ") }}
+{% endif %}
+
+## 参考資料
+
+
+---
+*🤖 Universal Knowledge Framework で生成 - {{ timestamp }}*
+
+**プロジェクト情報:**
+- タイプ: {{ project_type }}
+- パス: {{ project_path }}
+{% if custom_fields %}
+{% for key, value in custom_fields.items() %}
+- {{ key }}: {{ value }}
+{% endfor %}
+{% endif %}

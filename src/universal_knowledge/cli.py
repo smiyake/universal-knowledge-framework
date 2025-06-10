@@ -565,6 +565,241 @@ def delete(name: str):
         sys.exit(1)
 
 
+@main.group()
+def bridge():
+    """ブリッジアダプター管理 - 外部ツール連携"""
+    pass
+
+
+@bridge.command()
+def list():
+    """利用可能なアダプター一覧を表示"""
+    try:
+        bridge_manager = BridgeManager()
+        adapters = bridge_manager.list_adapters()
+        
+        if not adapters:
+            click.echo("📭 登録済みアダプターがありません")
+            click.echo("\n🔧 利用可能なアダプター:")
+            click.echo("  - obsidian: Obsidianボルト連携")
+            return
+        
+        click.echo("📋 登録済みアダプター:")
+        status = bridge_manager.get_adapter_status()
+        
+        for adapter_name in adapters:
+            adapter_status = status.get(adapter_name, {})
+            connected = adapter_status.get('connected', False)
+            status_emoji = "🟢" if connected else "🔴"
+            click.echo(f"  {status_emoji} {adapter_name}")
+            
+            if connected and 'info' in adapter_status:
+                info = adapter_status['info']
+                if 'vault_path' in info:
+                    click.echo(f"    📁 ボルト: {info['vault_path']}")
+                    
+    except Exception as e:
+        click.echo(f"❌ アダプター一覧エラー: {e}", err=True)
+        sys.exit(1)
+
+
+@bridge.command()
+@click.argument("adapter_name")
+@click.option("--vault-path", "-v", help="Obsidianボルトパス (obsidianアダプター用)")
+@click.option("--project-path", "-p", default=None, help="プロジェクトパス (デフォルト: 現在のディレクトリ)")
+@click.option("--create-vault", is_flag=True, help="ボルトが存在しない場合作成")
+def connect(adapter_name: str, vault_path: Optional[str], project_path: Optional[str], create_vault: bool):
+    """アダプターに接続"""
+    try:
+        bridge_manager = BridgeManager(project_path)
+        
+        if adapter_name == "obsidian":
+            # Obsidianアダプターを登録・接続
+            obsidian_adapter = ObsidianAdapter()
+            bridge_manager.register_adapter(obsidian_adapter)
+            
+            config = {
+                'project_path': project_path or Path.cwd(),
+                'create_if_missing': create_vault
+            }
+            
+            if vault_path:
+                config['vault_path'] = vault_path
+            
+            success = bridge_manager.connect_adapter("obsidian", config)
+            
+            if success:
+                click.echo(f"✅ {adapter_name} アダプターに接続しました")
+                
+                # プロジェクトデータを同期
+                project_data = StandardDataFormat.create_project_data(
+                    project_path or Path.cwd()
+                )
+                
+                sync_results = bridge_manager.sync_all(project_data)
+                if sync_results.get("obsidian"):
+                    click.echo("📁 プロジェクトデータを同期しました")
+                else:
+                    click.echo("⚠️ データ同期に失敗しました")
+            else:
+                click.echo(f"❌ {adapter_name} アダプターへの接続に失敗しました", err=True)
+                sys.exit(1)
+        else:
+            click.echo(f"❌ 未対応のアダプター: {adapter_name}", err=True)
+            click.echo("利用可能なアダプター: obsidian")
+            sys.exit(1)
+            
+    except Exception as e:
+        click.echo(f"❌ アダプター接続エラー: {e}", err=True)
+        sys.exit(1)
+
+
+@bridge.command()
+@click.argument("adapter_name", required=False)
+def disconnect(adapter_name: Optional[str]):
+    """アダプターから切断 (アダプター名省略時は全て切断)"""
+    try:
+        bridge_manager = BridgeManager()
+        
+        if adapter_name:
+            # 特定のアダプターを切断
+            success = bridge_manager.disconnect_adapter(adapter_name)
+            if success:
+                click.echo(f"✅ {adapter_name} アダプターから切断しました")
+            else:
+                click.echo(f"❌ {adapter_name} アダプターが見つかりません", err=True)
+                sys.exit(1)
+        else:
+            # 全アダプターを切断
+            adapters = bridge_manager.list_adapters()
+            disconnected = 0
+            
+            for name in adapters:
+                if bridge_manager.disconnect_adapter(name):
+                    disconnected += 1
+            
+            click.echo(f"✅ {disconnected}個のアダプターから切断しました")
+            
+    except Exception as e:
+        click.echo(f"❌ アダプター切断エラー: {e}", err=True)
+        sys.exit(1)
+
+
+@bridge.command()
+@click.option("--project-path", "-p", default=None, help="プロジェクトパス")
+def sync(project_path: Optional[str]):
+    """接続済みアダプターでプロジェクトデータを同期"""
+    try:
+        bridge_manager = BridgeManager(project_path)
+        adapters = bridge_manager.list_adapters()
+        
+        if not adapters:
+            click.echo("📭 登録済みアダプターがありません")
+            click.echo("使用方法: ukf bridge connect obsidian")
+            return
+        
+        # プロジェクトデータ作成
+        project_data = StandardDataFormat.create_project_data(
+            project_path or Path.cwd()
+        )
+        
+        # 全アダプターで同期
+        sync_results = bridge_manager.sync_all(project_data)
+        
+        click.echo("🔄 データ同期結果:")
+        for adapter_name, success in sync_results.items():
+            status_emoji = "✅" if success else "❌"
+            click.echo(f"  {status_emoji} {adapter_name}")
+        
+        successful_syncs = sum(sync_results.values())
+        total_adapters = len(sync_results)
+        
+        click.echo(f"\n📊 {successful_syncs}/{total_adapters} アダプターで同期完了")
+        
+    except Exception as e:
+        click.echo(f"❌ データ同期エラー: {e}", err=True)
+        sys.exit(1)
+
+
+@bridge.command()
+def status():
+    """ブリッジアダプターの状態を表示"""
+    try:
+        bridge_manager = BridgeManager()
+        status = bridge_manager.get_adapter_status()
+        
+        if not status:
+            click.echo("📭 登録済みアダプターがありません")
+            return
+        
+        click.echo("🔍 ブリッジアダプター状態:")
+        
+        for adapter_name, adapter_status in status.items():
+            connected = adapter_status.get('connected', False)
+            status_emoji = "🟢" if connected else "🔴"
+            
+            click.echo(f"\n{status_emoji} {adapter_name}")
+            click.echo(f"  接続状態: {'接続済み' if connected else '切断'}")
+            
+            if 'info' in adapter_status:
+                info = adapter_status['info']
+                click.echo(f"  タイプ: {info.get('type', '不明')}")
+                
+                if 'vault_path' in info:
+                    click.echo(f"  ボルトパス: {info['vault_path']}")
+                    click.echo(f"  ボルト存在: {'はい' if info.get('vault_exists') else 'いいえ'}")
+                    
+            if 'error' in adapter_status:
+                click.echo(f"  エラー: {adapter_status['error']}")
+                
+            click.echo(f"  最終確認: {adapter_status['last_check'][:19]}")
+            
+    except Exception as e:
+        click.echo(f"❌ 状態確認エラー: {e}", err=True)
+        sys.exit(1)
+
+
+@bridge.command()
+@click.option("--format", "-f", default="json",
+              type=click.Choice(['json', 'yaml']),
+              help="エクスポート形式")
+@click.option("--output", "-o", default=None, help="出力ファイルパス")
+@click.option("--project-path", "-p", default=None, help="プロジェクトパス")
+def export(format: str, output: Optional[str], project_path: Optional[str]):
+    """プロジェクトデータを標準形式でエクスポート"""
+    try:
+        # プロジェクトデータ作成
+        project_data = StandardDataFormat.create_project_data(
+            project_path or Path.cwd()
+        )
+        
+        # 出力パス決定
+        if not output:
+            project_name = project_data.name.replace(' ', '_').lower()
+            output = f"{project_name}_export.{format}"
+        
+        # エクスポート実行
+        if format == "json":
+            success = StandardDataFormat.export_to_json(project_data, output)
+        else:
+            # YAML対応は将来実装
+            click.echo("❌ YAML形式は未対応です", err=True)
+            sys.exit(1)
+        
+        if success:
+            click.echo(f"✅ プロジェクトデータをエクスポートしました")
+            click.echo(f"📁 ファイル: {output}")
+            click.echo(f"📊 ファイル数: {len(project_data.files)}")
+            click.echo(f"📝 タスク数: {len(project_data.tasks)}")
+        else:
+            click.echo("❌ エクスポートに失敗しました", err=True)
+            sys.exit(1)
+            
+    except Exception as e:
+        click.echo(f"❌ エクスポートエラー: {e}", err=True)
+        sys.exit(1)
+
+
 @main.command()
 def version():
     """バージョン情報を表示します"""

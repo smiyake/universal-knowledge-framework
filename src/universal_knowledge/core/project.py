@@ -7,7 +7,7 @@ import os
 import shutil
 import json
 from pathlib import Path
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Any
 from datetime import datetime
 
 
@@ -352,3 +352,248 @@ jupyter>=1.0.0
             print("   git init")
             print("   git add .")
             print("   git commit -m \"初期コミット: プロジェクト作成 🚀\"")
+    
+    def detect_project_context(self, project_path: Path) -> Dict[str, Any]:
+        """
+        プロジェクトコンテキストを自動検出
+        Automatically detect project context
+        
+        Args:
+            project_path: プロジェクトパス
+        
+        Returns:
+            プロジェクトコンテキスト情報
+        """
+        context = {
+            "name": project_path.name,
+            "path": str(project_path),
+            "type": "basic",
+            "phase": "development",
+            "tech_stack": [],
+            "frameworks": [],
+            "programming_languages": [],
+            "team_size": 1,
+            "team_members": [],
+            "custom_fields": {}
+        }
+        
+        # Check if UKF project
+        ukf_config = project_path / ".ukf" / "project.json"
+        if ukf_config.exists():
+            try:
+                with open(ukf_config, 'r', encoding='utf-8') as f:
+                    ukf_data = json.load(f)
+                context.update({
+                    "name": ukf_data.get("name", project_path.name),
+                    "type": ukf_data.get("type", "basic"),
+                    "created_at": ukf_data.get("created_at"),
+                    "version": ukf_data.get("version")
+                })
+            except:
+                pass
+        
+        # Detect technology stack
+        context["tech_stack"] = self._detect_tech_stack(project_path)
+        context["frameworks"] = self._detect_frameworks(project_path)
+        context["programming_languages"] = self._detect_languages(project_path)
+        
+        # Detect project type if not set
+        if context["type"] == "basic":
+            context["type"] = self._infer_project_type(project_path, context)
+        
+        # Detect project phase
+        context["phase"] = self._detect_project_phase(project_path)
+        
+        return context
+    
+    def _detect_tech_stack(self, project_path: Path) -> List[str]:
+        """技術スタックを検出"""
+        tech_stack = []
+        
+        # Node.js
+        if (project_path / "package.json").exists():
+            tech_stack.extend(["Node.js", "JavaScript"])
+        
+        # Python
+        if any((project_path / file).exists() for file in ["requirements.txt", "pyproject.toml", "setup.py"]):
+            tech_stack.append("Python")
+        
+        # Java
+        if any((project_path / file).exists() for file in ["pom.xml", "build.gradle"]):
+            tech_stack.append("Java")
+        
+        # .NET
+        if any(project_path.glob("*.csproj")) or any(project_path.glob("*.sln")):
+            tech_stack.append(".NET")
+        
+        # Go
+        if (project_path / "go.mod").exists():
+            tech_stack.append("Go")
+        
+        # Rust
+        if (project_path / "Cargo.toml").exists():
+            tech_stack.append("Rust")
+        
+        # Docker
+        if (project_path / "Dockerfile").exists() or (project_path / "docker-compose.yml").exists():
+            tech_stack.append("Docker")
+        
+        # Kubernetes
+        if any(project_path.glob("**/k8s/**/*.yml")) or any(project_path.glob("**/kubernetes/**/*.yaml")):
+            tech_stack.append("Kubernetes")
+        
+        return tech_stack
+    
+    def _detect_frameworks(self, project_path: Path) -> List[str]:
+        """フレームワークを検出"""
+        frameworks = []
+        
+        # Check package.json for JS frameworks
+        package_json = project_path / "package.json"
+        if package_json.exists():
+            try:
+                with open(package_json, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                dependencies = {**data.get("dependencies", {}), **data.get("devDependencies", {})}
+                
+                if "react" in dependencies:
+                    frameworks.append("React")
+                if "vue" in dependencies:
+                    frameworks.append("Vue.js")
+                if "angular" in dependencies or "@angular/core" in dependencies:
+                    frameworks.append("Angular")
+                if "express" in dependencies:
+                    frameworks.append("Express.js")
+                if "next" in dependencies:
+                    frameworks.append("Next.js")
+                if "nuxt" in dependencies:
+                    frameworks.append("Nuxt.js")
+            except:
+                pass
+        
+        # Check Python frameworks
+        requirements_files = ["requirements.txt", "pyproject.toml"]
+        for req_file in requirements_files:
+            req_path = project_path / req_file
+            if req_path.exists():
+                try:
+                    content = req_path.read_text(encoding='utf-8').lower()
+                    if "django" in content:
+                        frameworks.append("Django")
+                    if "flask" in content:
+                        frameworks.append("Flask")
+                    if "fastapi" in content:
+                        frameworks.append("FastAPI")
+                    if "streamlit" in content:
+                        frameworks.append("Streamlit")
+                    if "pandas" in content:
+                        frameworks.append("Pandas")
+                    if "numpy" in content:
+                        frameworks.append("NumPy")
+                    if "scikit-learn" in content:
+                        frameworks.append("Scikit-learn")
+                    if "tensorflow" in content:
+                        frameworks.append("TensorFlow")
+                    if "pytorch" in content:
+                        frameworks.append("PyTorch")
+                except:
+                    pass
+        
+        return frameworks
+    
+    def _detect_languages(self, project_path: Path) -> List[str]:
+        """プログラミング言語を検出"""
+        languages = []
+        
+        # File extension mapping
+        ext_mapping = {
+            ".py": "Python",
+            ".js": "JavaScript",
+            ".ts": "TypeScript",
+            ".jsx": "JSX",
+            ".tsx": "TSX",
+            ".java": "Java",
+            ".cs": "C#",
+            ".cpp": "C++",
+            ".c": "C",
+            ".go": "Go",
+            ".rs": "Rust",
+            ".php": "PHP",
+            ".rb": "Ruby",
+            ".swift": "Swift",
+            ".kt": "Kotlin",
+            ".scala": "Scala",
+            ".r": "R",
+            ".sql": "SQL"
+        }
+        
+        # Count files by extension
+        lang_counts = {}
+        for file_path in project_path.rglob("*"):
+            if file_path.is_file() and not self._is_ignored_path(file_path):
+                ext = file_path.suffix.lower()
+                if ext in ext_mapping:
+                    lang = ext_mapping[ext]
+                    lang_counts[lang] = lang_counts.get(lang, 0) + 1
+        
+        # Return languages sorted by frequency
+        return [lang for lang, _ in sorted(lang_counts.items(), key=lambda x: x[1], reverse=True)]
+    
+    def _is_ignored_path(self, file_path: Path) -> bool:
+        """無視するパスかどうかを判定"""
+        ignored_dirs = {".git", "__pycache__", "node_modules", ".vscode", ".idea", "dist", "build"}
+        return any(part in ignored_dirs for part in file_path.parts)
+    
+    def _infer_project_type(self, project_path: Path, context: Dict[str, Any]) -> str:
+        """プロジェクトタイプを推測"""
+        tech_stack = context.get("tech_stack", [])
+        frameworks = context.get("frameworks", [])
+        languages = context.get("programming_languages", [])
+        
+        # Web development
+        web_indicators = ["React", "Vue.js", "Angular", "Express.js", "Django", "Flask", "FastAPI"]
+        if any(fw in frameworks for fw in web_indicators) or "JavaScript" in languages:
+            return "web-development"
+        
+        # Data science
+        ds_indicators = ["Pandas", "NumPy", "Scikit-learn", "TensorFlow", "PyTorch", "Streamlit"]
+        if any(fw in frameworks for fw in ds_indicators) or (project_path / "notebooks").exists():
+            return "data-science"
+        
+        # Research
+        if (project_path / "papers").exists() or (project_path / "references").exists():
+            return "research"
+        
+        # Business
+        if (project_path / "proposals").exists() or (project_path / "presentations").exists():
+            return "business"
+        
+        # Personal
+        if (project_path / "learning").exists() or (project_path / "practice").exists():
+            return "personal"
+        
+        return "basic"
+    
+    def _detect_project_phase(self, project_path: Path) -> str:
+        """プロジェクトフェーズを検出"""
+        # Check for indicators of different phases
+        
+        # Planning phase
+        if (project_path / "README.md").exists():
+            readme_content = (project_path / "README.md").read_text(encoding='utf-8').lower()
+            if "todo" in readme_content or "planning" in readme_content:
+                return "planning"
+        
+        # Development phase
+        if any(project_path.glob("src/**/*")) or any(project_path.glob("**/*.py")) or any(project_path.glob("**/*.js")):
+            return "development"
+        
+        # Testing phase
+        if any(project_path.glob("tests/**/*")) or any(project_path.glob("**/*test*")):
+            return "testing"
+        
+        # Production phase
+        if (project_path / "Dockerfile").exists() or (project_path / "docker-compose.yml").exists():
+            return "production"
+        
+        return "development"

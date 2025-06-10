@@ -1,0 +1,62 @@
+{
+  "default": {
+    "name": "Default Template",
+    "description": "Basic template for any document type",
+    "languages": ["ja", "en"],
+    "formats": ["markdown"],
+    "project_types": ["basic"],
+    "use_cases": ["general", "fallback"]
+  },
+  "session_ja_markdown": {
+    "name": "Session Record (Japanese)",
+    "description": "Session recording template in Japanese for markdown format",
+    "languages": ["ja"],
+    "formats": ["markdown"],
+    "project_types": ["basic", "web-development", "data-science", "business", "research"],
+    "use_cases": ["session", "work_log", "progress_tracking"]
+  },
+  "session_en_markdown": {
+    "name": "Session Record (English)",
+    "description": "Session recording template in English for markdown format",
+    "languages": ["en"],
+    "formats": ["markdown"],
+    "project_types": ["basic", "web-development", "data-science", "business", "research"],
+    "use_cases": ["session", "work_log", "progress_tracking"]
+  },
+  "meeting_ja_markdown": {
+    "name": "Meeting Record (Japanese)",
+    "description": "Meeting minutes template in Japanese",
+    "languages": ["ja"],
+    "formats": ["markdown"],
+    "project_types": ["business", "research", "web-development", "data-science"],
+    "use_cases": ["meeting", "discussion", "decision_making"]
+  },
+  "planning_ja_markdown": {
+    "name": "Planning Document (Japanese)",
+    "description": "Project planning template in Japanese",
+    "languages": ["ja"],
+    "formats": ["markdown"],
+    "project_types": ["basic", "web-development", "data-science", "business", "research"],
+    "use_cases": ["planning", "project_setup", "roadmap"]
+  },
+  "web-development_session_ja_markdown": {
+    "name": "Web Development Session (Japanese)",
+    "description": "Specialized session template for web development projects",
+    "languages": ["ja"],
+    "formats": ["markdown"],
+    "project_types": ["web-development"],
+    "use_cases": ["development", "coding", "web_projects"],
+    "tech_stack": ["JavaScript", "Node.js", "React", "Vue.js", "Angular"],
+    "frameworks": ["Express.js", "Next.js", "Nuxt.js", "Django", "Flask"]
+  },
+  "data-science_session_ja_markdown": {
+    "name": "Data Science Session (Japanese)",
+    "description": "Specialized session template for data science projects",
+    "languages": ["ja"],
+    "formats": ["markdown"],
+    "project_types": ["data-science"],
+    "use_cases": ["analysis", "modeling", "data_exploration"],
+    "tech_stack": ["Python", "R"],
+    "frameworks": ["Pandas", "NumPy", "Scikit-learn", "TensorFlow", "PyTorch", "Streamlit"]
+  }
+}

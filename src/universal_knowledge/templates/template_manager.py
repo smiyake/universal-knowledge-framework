@@ -396,7 +396,7 @@ class TemplateManager:
                 continue
             
             # Search in template content (for custom templates)
-            if template.get('type') == 'custom':
+            if template.get('type') in ['custom', 'imported']:
                 try:
                     template_path = Path(template['path'])
                     if template_path.exists():
