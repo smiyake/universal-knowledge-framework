@@ -22,16 +22,23 @@
 
 ## インストール
 
-### PyPI経由（推奨）
+### PyPI経由（準備中）
 
 ```bash
+# 将来対応予定
 pip install universal-knowledge-framework
+```
+
+### GitHub経由（現在推奨）
+
+```bash
+pip install git+https://github.com/cginzai/universal-knowledge-framework.git
 ```
 
 ### ソースから
 
 ```bash
-git clone https://github.com/smiyake/universal-knowledge-framework.git
+git clone https://github.com/cginzai/universal-knowledge-framework.git
 cd universal-knowledge-framework
 pip install -e .
 ```

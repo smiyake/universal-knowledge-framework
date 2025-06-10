@@ -7,7 +7,7 @@ name = "universal-knowledge-framework"
 version = "1.0.0"
 description = "あらゆるプロジェクトで利用可能な汎用ナレッジ管理フレームワーク"
 readme = "README.md"
-license = {file = "LICENSE"}
+license = "MIT"
 authors = [
     {name = "株式会社CGin財 (CGin-Zai Co., Ltd.)"},
 ]
@@ -50,9 +50,9 @@ ai = [
 ukf = "universal_knowledge.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/smiyake/universal-knowledge-framework"
-Repository = "https://github.com/smiyake/universal-knowledge-framework"
-Issues = "https://github.com/smiyake/universal-knowledge-framework/issues"
+Homepage = "https://github.com/cginzai/universal-knowledge-framework"
+Repository = "https://github.com/cginzai/universal-knowledge-framework"
+Issues = "https://github.com/cginzai/universal-knowledge-framework/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -12,10 +12,16 @@
 pip install universal-knowledge-framework
 ```
 
+### GitHub経由でのインストール（推奨）
+
+```bash
+pip install git+https://github.com/cginzai/universal-knowledge-framework.git
+```
+
 ### ソースからのインストール
 
 ```bash
-git clone https://github.com/USERNAME/universal-knowledge-framework.git
+git clone https://github.com/cginzai/universal-knowledge-framework.git
 cd universal-knowledge-framework
 pip install -e .
 ```
