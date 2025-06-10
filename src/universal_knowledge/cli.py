@@ -28,19 +28,60 @@ def main():
               type=click.Choice(['basic', 'web-development', 'data-science', 'business', 'research', 'personal']),
               help="プロジェクトタイプ")
 @click.option("--path", "-p", default=None, help="作成パス (デフォルト: 現在のディレクトリ)")
-def create_project(name: str, type: str, path: Optional[str]):
+@click.option("--skip-git", is_flag=True, help="Git初期化をスキップ")
+def create_project(name: str, type: str, path: Optional[str], skip_git: bool):
     """新しいプロジェクトを作成します"""
     try:
+        click.echo(f"🚀 プロジェクト '{name}' を作成しています...")
+        click.echo(f"📁 タイプ: {type}")
+        
         project_manager = ProjectManager()
         project_path = project_manager.create_project(name, type, path)
-        click.echo(f"✅ プロジェクト '{name}' を作成しました: {project_path}")
-        click.echo(f"📁 プロジェクトタイプ: {type}")
+        
+        click.echo(f"\n✅ プロジェクト '{name}' を作成しました")
+        click.echo(f"📍 場所: {project_path}")
+        click.echo(f"📁 タイプ: {type}")
         click.echo("")
-        click.echo("次のステップ:")
-        click.echo(f"  cd {project_path}")
-        click.echo("  ukf sync start")
+        click.echo("🎯 次のステップ:")
+        click.echo(f"   cd {project_path}")
+        click.echo("   ukf sync start")
+        click.echo("")
+        click.echo("📚 詳細な使用方法: ukf --help")
+        
+    except PermissionError:
+        click.echo("❌ プロジェクト作成に失敗しました", err=True)
+        click.echo("", err=True)
+        click.echo("🔍 原因: 書き込み権限がありません", err=True)
+        click.echo("💡 解決策:", err=True)
+        click.echo("  1. 書き込み権限のあるディレクトリを選択してください", err=True)
+        click.echo("  2. 管理者権限で実行してください", err=True)
+        click.echo("  3. パス指定オプション -p を使用してください", err=True)
+        click.echo("", err=True)
+        click.echo("🔧 例: ukf create-project -n myproject -p ~/Documents", err=True)
+        sys.exit(1)
+        
+    except FileNotFoundError as e:
+        click.echo("❌ プロジェクト作成に失敗しました", err=True)
+        click.echo("", err=True)
+        click.echo("🔍 原因: 指定されたパスが存在しません", err=True)
+        click.echo("💡 解決策:", err=True)
+        click.echo("  1. 親ディレクトリが存在することを確認してください", err=True)
+        click.echo("  2. 正しいパスを指定してください", err=True)
+        click.echo("", err=True)
+        click.echo(f"🔧 エラー詳細: {e}", err=True)
+        sys.exit(1)
+        
     except Exception as e:
-        click.echo(f"❌ プロジェクト作成エラー: {e}", err=True)
+        click.echo("❌ プロジェクト作成に失敗しました", err=True)
+        click.echo("", err=True)
+        click.echo(f"🔍 原因: {e}", err=True)
+        click.echo("💡 解決策:", err=True)
+        click.echo("  1. 再度実行してみてください", err=True)
+        click.echo("  2. パス名に特殊文字が含まれていないか確認してください", err=True)
+        click.echo("  3. ディスク容量を確認してください", err=True)
+        click.echo("", err=True)
+        click.echo("📚 詳細なヘルプ: ukf create-project --help", err=True)
+        click.echo("🐛 問題が解決しない場合: https://github.com/smiyake/universal-knowledge-framework/issues", err=True)
         sys.exit(1)
 
 
