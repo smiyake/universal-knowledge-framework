@@ -51,11 +51,18 @@ pip install -e .
 
 ## 基本的な使用方法
 
-### 新規プロジェクト作成
+### 新規プロジェクト作成（推奨）
 
 ```bash
+# プロジェクト専用ディレクトリを作成
+mkdir my-project
+cd my-project
+
+# フレームワークでプロジェクト初期化
 ukf create-project --name "マイプロジェクト" --type web-development
 ```
+
+⚠️ **重要**: 既存のObsidianボルトに直接インストールしないでください。詳細は[ベストプラクティス](BEST_PRACTICES.md)を参照。
 
 ### 文書同期開始
 

@@ -57,15 +57,15 @@ class KnowledgeManager:
                     elif selected_vault_path:
                         # 選択されたボルトの設定をコピー
                         self.copy_obsidian_settings(selected_vault_path)
-                        # プロジェクト内のdocsディレクトリをボルトとして使用
-                        obsidian_vault = str(self.project_path / "docs")
+                        # プロジェクト内のknowledgeディレクトリをボルトとして使用
+                        obsidian_vault = str(self.project_path / "knowledge")
                     else:
                         # 新規作成
-                        obsidian_vault = str(self.project_path / "docs")
+                        obsidian_vault = str(self.project_path / "knowledge")
                         print("📁 新規Obsidianボルトを作成します")
                 else:
                     # 既存ボルトなし - 新規作成
-                    obsidian_vault = str(self.project_path / "docs")
+                    obsidian_vault = str(self.project_path / "knowledge")
                     print("📁 新規Obsidianボルトを作成します")
             
             # プロジェクト専用ボルトのディレクトリ作成
@@ -235,11 +235,14 @@ class KnowledgeManager:
         try:
             # 基本的なナレッジ構造ディレクトリを作成
             knowledge_dirs = [
-                "docs",
-                "docs/planning", 
-                "docs/progress",
-                "docs/references",
-                "docs/templates"
+                "knowledge",
+                "knowledge/00_Overview",
+                "knowledge/01_Requirements", 
+                "knowledge/02_Design",
+                "knowledge/03_Implementation",
+                "knowledge/04_Testing",
+                "knowledge/05_Deployment",
+                "knowledge/99_Archives"
             ]
             
             for dir_name in knowledge_dirs:
@@ -255,7 +258,7 @@ class KnowledgeManager:
     
     def _create_basic_docs(self) -> None:
         """基本的なドキュメントファイルを作成"""
-        docs_path = self.project_path / "docs"
+        knowledge_path = self.project_path / "knowledge"
         
         # プロジェクト概要
         project_overview = """# プロジェクト概要
@@ -295,14 +298,108 @@ class KnowledgeManager:
 ## リスク管理
 """
         
-        with open(docs_path / "プロジェクト概要.md", "w", encoding="utf-8") as f:
+        with open(knowledge_path / "00_Overview" / "プロジェクト概要.md", "w", encoding="utf-8") as f:
             f.write(project_overview)
         
-        with open(docs_path / "progress" / "進捗管理.md", "w", encoding="utf-8") as f:
+        with open(knowledge_path / "03_Implementation" / "進捗管理.md", "w", encoding="utf-8") as f:
             f.write(progress_doc)
         
-        with open(docs_path / "planning" / "計画書.md", "w", encoding="utf-8") as f:
+        with open(knowledge_path / "01_Requirements" / "計画書.md", "w", encoding="utf-8") as f:
             f.write(planning_doc)
+        
+        # README.md（プロジェクトルート）
+        project_readme = f"""# {self.project_path.name}
+
+## 概要
+
+このプロジェクトの詳細なドキュメントは`knowledge/`ディレクトリで管理されています。
+
+## ドキュメント構成
+
+- `knowledge/00_Overview/` - プロジェクト概要
+- `knowledge/01_Requirements/` - 要件定義
+- `knowledge/02_Design/` - 設計文書
+- `knowledge/03_Implementation/` - 実装メモ
+- `knowledge/04_Testing/` - テスト関連
+- `knowledge/05_Deployment/` - デプロイ・運用
+- `knowledge/99_Archives/` - アーカイブ
+
+## Obsidianで開く
+
+1. Obsidianを起動
+2. 「別のボルトを開く」を選択
+3. `{self.project_path.name}/knowledge/` を選択
+
+## クイックスタート
+
+```bash
+# 依存関係インストール
+pip install -r requirements.txt
+
+# 開発サーバー起動
+make dev
+```
+
+詳細は[プロジェクト概要](knowledge/00_Overview/プロジェクト概要.md)を参照してください。
+"""
+        
+        # CLAUDE.md（knowledgeディレクトリ）
+        claude_md = f"""# CLAUDE.md
+
+このファイルはClaude Codeに対してプロジェクト固有の指示を提供します。
+
+## プロジェクト概要
+
+**{self.project_path.name}** - [プロジェクトの簡潔な説明をここに記載]
+
+## 開発ルール
+
+### コーディング規約
+- [使用する言語/フレームワークの規約を記載]
+- [プロジェクト固有のルールを記載]
+
+### Git運用
+- feature/[機能名] ブランチで開発
+- コミットメッセージは日本語で記載
+- PR前にテスト実行必須
+
+### ディレクトリ構成
+```
+{self.project_path.name}/
+├── knowledge/          # プロジェクトドキュメント（Obsidian）
+├── src/               # ソースコード
+├── tests/             # テストコード
+└── README.md          # プロジェクト概要
+```
+
+## 重要な注意事項
+
+1. **セキュリティ**: APIキーや認証情報は環境変数で管理
+2. **テスト**: 新機能追加時は必ずテストを作成
+3. **ドキュメント**: 重要な決定事項はknowledge/に記録
+
+## よく使うコマンド
+
+```bash
+# テスト実行
+make test
+
+# リント実行
+make lint
+
+# ビルド
+make build
+```
+"""
+        
+        # ファイル作成
+        readme_path = self.project_path / "README.md"
+        if not readme_path.exists():
+            with open(readme_path, "w", encoding="utf-8") as f:
+                f.write(project_readme)
+        
+        with open(knowledge_path / "CLAUDE.md", "w", encoding="utf-8") as f:
+            f.write(claude_md)
     
     def _create_basic_obsidian_config(self, obsidian_dir: Path) -> None:
         """
@@ -414,7 +511,7 @@ class KnowledgeManager:
             
             # ターゲットパス決定
             if target_path is None:
-                target_path = self.project_path / "docs"
+                target_path = self.project_path / "knowledge"
             else:
                 target_path = Path(target_path)
             
