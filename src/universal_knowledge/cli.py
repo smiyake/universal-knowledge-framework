@@ -16,12 +16,13 @@ from .core.task import TaskManager
 from .core.analytics import ProjectAnalytics
 from .core.bridge import BridgeManager, StandardDataFormat
 from .core.obsidian_adapter import ObsidianAdapter
+from .core.updater import UKFUpdater
 from .ai_commands import create_ai_cli_group
 from .templates import DynamicTemplateEngine, TemplateManager
 
 
 @click.group()
-@click.version_option(version="1.0.0")
+@click.version_option(version="1.1.0")
 def main():
     """汎用ナレッジ管理フレームワーク - あらゆるプロジェクトで利用可能な文書管理システム"""
     pass
@@ -800,10 +801,168 @@ def export(format: str, output: Optional[str], project_path: Optional[str]):
         sys.exit(1)
 
 
+@main.group()
+def update():
+    """UKF更新・アップグレード"""
+    pass
+
+
+@update.command()
+@click.option("--version", "-v", default=None, help="対象バージョン (デフォルト: 最新)")
+@click.option("--force", is_flag=True, help="強制更新 (未コミット変更を無視)")
+@click.option("--dry-run", is_flag=True, help="実行せず手順のみ表示")
+@click.option("--ukf-path", default=None, help="UKFプロジェクトパス")
+def run(version: Optional[str], force: bool, dry_run: bool, ukf_path: Optional[str]):
+    """UKFを最新版に更新します"""
+    try:
+        updater = UKFUpdater(Path(ukf_path) if ukf_path else None)
+        
+        if dry_run:
+            click.echo("🔍 DRY RUN モード - 実際の更新は行いません")
+        
+        click.echo("🚀 UKF更新を開始します...")
+        
+        # 更新チェック
+        update_check = updater.check_for_updates()
+        
+        if update_check.get("error"):
+            click.echo(f"❌ 更新チェックエラー: {update_check['error']}", err=True)
+            sys.exit(1)
+        
+        if not update_check.get("updates_available") and not force:
+            click.echo("✅ 既に最新版です")
+            click.echo(f"現在のバージョン: {update_check['current_version']}")
+            return
+        
+        click.echo(f"📊 現在のバージョン: {update_check['current_version']}")
+        click.echo(f"📈 最新バージョン: {update_check['remote_version']}")
+        
+        # 更新実行
+        result = updater.update(version, force, dry_run)
+        
+        # 結果表示
+        if result["success"]:
+            click.echo("\n✅ 更新完了!")
+            if not dry_run:
+                click.echo("🎯 新機能を試してみてください:")
+                click.echo("   ukf stats summary")
+                click.echo("   ukf ai session start")
+                click.echo("   ukf template recommend")
+        else:
+            click.echo(f"\n❌ 更新エラー: {result.get('error', '不明なエラー')}", err=True)
+            if result.get("backup_created"):
+                click.echo(f"💡 復元方法: ukf update rollback --backup {result['backup_path']}")
+            sys.exit(1)
+        
+        # ステップ詳細表示
+        if dry_run or result.get("error"):
+            click.echo("\n📋 実行ステップ:")
+            for step in result["steps"]:
+                click.echo(f"  {step['message']}")
+                
+    except Exception as e:
+        click.echo(f"❌ 更新システムエラー: {e}", err=True)
+        sys.exit(1)
+
+
+@update.command()
+@click.option("--backup", "-b", required=True, help="バックアップディレクトリパス")
+def rollback(backup: str):
+    """バックアップから復元します"""
+    try:
+        updater = UKFUpdater()
+        
+        click.echo(f"🔄 バックアップから復元中: {backup}")
+        
+        result = updater.rollback(backup)
+        
+        if result["success"]:
+            click.echo("✅ 復元完了!")
+        else:
+            click.echo(f"❌ 復元エラー: {result.get('error', '不明なエラー')}", err=True)
+            sys.exit(1)
+            
+    except Exception as e:
+        click.echo(f"❌ 復元システムエラー: {e}", err=True)
+        sys.exit(1)
+
+
+@update.command()
+def check():
+    """更新の有無をチェックします"""
+    try:
+        updater = UKFUpdater()
+        
+        click.echo("🔍 更新チェック中...")
+        
+        result = updater.check_for_updates()
+        
+        if result.get("error"):
+            click.echo(f"❌ チェックエラー: {result['error']}", err=True)
+            sys.exit(1)
+        
+        click.echo(f"📊 現在のバージョン: {result['current_version']}")
+        click.echo(f"📈 リモートバージョン: {result['remote_version']}")
+        
+        if result["updates_available"]:
+            click.echo("🆙 更新が利用可能です!")
+            click.echo("実行コマンド: ukf update run")
+        else:
+            click.echo("✅ 最新版です")
+            
+    except Exception as e:
+        click.echo(f"❌ チェックシステムエラー: {e}", err=True)
+        sys.exit(1)
+
+
+@update.command()
+def backups():
+    """利用可能なバックアップ一覧を表示します"""
+    try:
+        updater = UKFUpdater()
+        
+        backup_list = updater.list_backups()
+        
+        if not backup_list:
+            click.echo("📝 バックアップがありません")
+            return
+        
+        click.echo("📋 利用可能なバックアップ:")
+        for backup in backup_list:
+            created = backup["created_at"][:19] if backup["created_at"] != "unknown" else "不明"
+            version = backup["version"]
+            click.echo(f"  📁 {backup['name']}")
+            click.echo(f"     作成日時: {created}")
+            click.echo(f"     バージョン: {version}")
+            click.echo(f"     パス: {backup['path']}")
+            click.echo()
+            
+    except Exception as e:
+        click.echo(f"❌ バックアップリストエラー: {e}", err=True)
+        sys.exit(1)
+
+
+@update.command()
+@click.option("--keep", default=5, help="保持するバックアップ数")
+def cleanup(keep: int):
+    """古いバックアップを削除します"""
+    try:
+        updater = UKFUpdater()
+        
+        deleted_count = updater.cleanup_old_backups(keep)
+        
+        click.echo(f"🗑️  {deleted_count}個の古いバックアップを削除しました")
+        click.echo(f"📁 {keep}個のバックアップを保持中")
+        
+    except Exception as e:
+        click.echo(f"❌ クリーンアップエラー: {e}", err=True)
+        sys.exit(1)
+
+
 @main.command()
 def version():
     """バージョン情報を表示します"""
-    click.echo("汎用ナレッジ管理フレームワーク v1.0.0")
+    click.echo("汎用ナレッジ管理フレームワーク v1.1.0")
     click.echo("Universal Knowledge Framework")
 
 
