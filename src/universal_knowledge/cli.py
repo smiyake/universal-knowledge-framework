@@ -19,7 +19,8 @@ from .core.obsidian_adapter import ObsidianAdapter
 from .core.updater import UKFUpdater
 from .ai_commands import create_ai_cli_group
 from .templates import DynamicTemplateEngine, TemplateManager
-from .utils import process_logs, DEFAULT_INPUT_DIR, DEFAULT_OUTPUT_DIR
+from .utils import process_logs
+from .utils.claude2md import DEFAULT_INPUT_DIR, DEFAULT_OUTPUT_DIR
 
 
 @click.group()

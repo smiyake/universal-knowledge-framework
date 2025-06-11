@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "universal-knowledge-framework"
-version = "1.0.0"
+version = "1.1.0"
 description = "あらゆるプロジェクトで利用可能な汎用ナレッジ管理フレームワーク"
 readme = "README.md"
 license = "MIT"
