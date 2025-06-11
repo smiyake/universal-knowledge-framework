@@ -309,17 +309,23 @@ class ProjectAnalytics:
     def _categorize_file(self, path: Path) -> str:
         """ファイルをカテゴリに分類"""
         ext = path.suffix.lower()
-        
+
+        # テストファイルの特別処理を優先
+        test_patterns = self.file_categories.get('test', set())
+        for pattern in test_patterns:
+            if pattern in path.name:
+                return 'test'
+
+        stem_lower = path.stem.lower()
+        if stem_lower.startswith('test_') or stem_lower.endswith('_test'):
+            return 'test'
+
         for category, extensions in self.file_categories.items():
+            if category == 'test':
+                continue
             if ext in extensions:
                 return category
-            
-            # テストファイルの特別処理
-            if category == 'test':
-                for test_pattern in extensions:
-                    if test_pattern in path.name:
-                        return 'test'
-        
+
         return 'other'
     
     def _calculate_directory_sizes(self) -> Dict[str, int]:

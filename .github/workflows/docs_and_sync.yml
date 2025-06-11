@@ -1,0 +1,43 @@
+name: Build and Sync Knowledge
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+      - name: Build docs
+        run: echo "Building documentation"
+
+  sync-claude:
+    needs: build-docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Convert Claude logs
+        run: python -m universal_knowledge.utils.claude2md -i claude_logs -o knowledge/Claude
+      - name: Commit and push changes
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add knowledge/Claude
+          git commit -m "chore: update Claude logs" || echo "No changes"
+          git push

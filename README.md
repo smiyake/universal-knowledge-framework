@@ -140,6 +140,12 @@ ukf bridge setup obsidian
 ukf bridge sync --target obsidian
 ```
 
+#### ClaudeログのMarkdown変換
+```bash
+# JSONログをMarkdownに変換
+python -m universal_knowledge.utils.claude2md -i claude_logs -o knowledge/Claude
+```
+
 ## 📋 更新・アップグレード
 
 ### 既存環境の更新
