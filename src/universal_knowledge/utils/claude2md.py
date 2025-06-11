@@ -1,12 +1,24 @@
+"""Utilities for converting Claude chat logs to Markdown."""
+
+import argparse
 import json
 from pathlib import Path
-import argparse
 
 IGNORE_PHRASES = {"了解です", "はい", "OK", "ok", "承知しました"}
+DEFAULT_INPUT_DIR = "claude_logs"
+DEFAULT_OUTPUT_DIR = "knowledge/Claude"
 
 
 def convert_log_to_markdown(json_path: Path, exclude_short: bool = True) -> str:
-    """Convert a single Claude chat log JSON file to Markdown."""
+    """Convert a single Claude chat log JSON file to Markdown.
+
+    Parameters
+    ----------
+    json_path:
+        Path to the JSON file containing a chat log.
+    exclude_short:
+        If ``True`` trivial messages such as acknowledgements are skipped.
+    """
     with open(json_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
@@ -29,7 +41,7 @@ def convert_log_to_markdown(json_path: Path, exclude_short: bool = True) -> str:
 
 
 def process_logs(input_dir: Path, output_dir: Path, exclude_short: bool = True) -> None:
-    """Process all JSON logs in the input directory."""
+    """Convert every JSON log in ``input_dir`` to Markdown files in ``output_dir``."""
     output_dir.mkdir(parents=True, exist_ok=True)
     for json_file in sorted(input_dir.glob('*.json')):
         md_file = output_dir / (json_file.stem + '.md')
@@ -40,8 +52,8 @@ def process_logs(input_dir: Path, output_dir: Path, exclude_short: bool = True) 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Convert Claude chat logs to Markdown")
-    parser.add_argument('-i', '--input', default='claude_logs', help='Directory containing Claude JSON logs')
-    parser.add_argument('-o', '--output', default='knowledge/Claude', help='Output directory for Markdown files')
+    parser.add_argument('-i', '--input', default=DEFAULT_INPUT_DIR, help='Directory containing Claude JSON logs')
+    parser.add_argument('-o', '--output', default=DEFAULT_OUTPUT_DIR, help='Output directory for Markdown files')
     parser.add_argument('--include-short', action='store_true', help='Include very short messages')
     args = parser.parse_args()
 
@@ -52,3 +64,5 @@ def main() -> None:
 
 if __name__ == '__main__':
     main()
+
+

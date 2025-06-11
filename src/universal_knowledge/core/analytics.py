@@ -317,7 +317,11 @@ class ProjectAnalytics:
                 return 'test'
 
         stem_lower = path.stem.lower()
-        if stem_lower.startswith('test_') or stem_lower.endswith('_test'):
+        if (
+            stem_lower.startswith('test_')
+            or stem_lower.endswith('_test')
+            or 'tests' in path.parts
+        ):
             return 'test'
 
         for category, extensions in self.file_categories.items():

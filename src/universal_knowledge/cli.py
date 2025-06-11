@@ -19,6 +19,7 @@ from .core.obsidian_adapter import ObsidianAdapter
 from .core.updater import UKFUpdater
 from .ai_commands import create_ai_cli_group
 from .templates import DynamicTemplateEngine, TemplateManager
+from .utils import process_logs, DEFAULT_INPUT_DIR, DEFAULT_OUTPUT_DIR
 
 
 @click.group()
@@ -956,6 +957,20 @@ def cleanup(keep: int):
         
     except Exception as e:
         click.echo(f"❌ クリーンアップエラー: {e}", err=True)
+        sys.exit(1)
+
+
+@main.command()
+@click.option("--input-dir", "-i", default=DEFAULT_INPUT_DIR, help="Claude JSONログディレクトリ")
+@click.option("--output-dir", "-o", default=DEFAULT_OUTPUT_DIR, help="出力先Markdownディレクトリ")
+@click.option("--include-short", is_flag=True, help="短いメッセージも含める")
+def claude2md(input_dir: str, output_dir: str, include_short: bool):
+    """ClaudeログをMarkdown形式に変換します"""
+    try:
+        process_logs(Path(input_dir), Path(output_dir), exclude_short=not include_short)
+        click.echo("✅ Claudeログを変換しました")
+    except Exception as e:
+        click.echo(f"❌ 変換エラー: {e}", err=True)
         sys.exit(1)
 
 
