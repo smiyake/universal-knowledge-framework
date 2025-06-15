@@ -9,6 +9,7 @@ import os
 import sys
 from pathlib import Path
 from typing import Optional
+from datetime import datetime
 
 from .core.manager import KnowledgeManager
 from .core.project import ProjectManager
@@ -1099,6 +1100,215 @@ def cleanup(keep: int):
         
     except Exception as e:
         click.echo(f"❌ クリーンアップエラー: {e}", err=True)
+        sys.exit(1)
+
+
+@main.group()
+def knowledge():
+    """知識圧縮・管理機能"""
+    pass
+
+
+@knowledge.command()
+@click.option("--output", "-o", default="PROJECT_KNOWLEDGE_MAP.md", help="出力ファイル名")
+@click.option("--max-tokens", "-t", default=5000, help="最大トークン数")
+@click.option("--format", "-f", default="claude-code", 
+              type=click.Choice(['claude-code', 'mindmap', 'markdown']),
+              help="出力フォーマット")
+@click.option("--config", "-c", default=None, help="設定ファイルパス")
+@click.option("--focus", default=None, help="フォーカスする項目（カンマ区切り）")
+@click.option("--project-path", "-p", default=".", help="プロジェクトパス")
+def compress(output: str, max_tokens: int, format: str, config: Optional[str], 
+            focus: Optional[str], project_path: str):
+    """プロジェクト知識を圧縮してClaude Code用に最適化"""
+    try:
+        from .core.compressor import KnowledgeCompressor
+        
+        click.echo("🗜️  プロジェクト知識を圧縮中...")
+        
+        # コンプレッサー初期化
+        config_path = Path(config) if config else None
+        compressor = KnowledgeCompressor(config_path)
+        
+        # プロジェクトパス解決
+        project = Path(project_path).resolve()
+        if not project.exists():
+            click.echo(f"❌ プロジェクトが見つかりません: {project}", err=True)
+            sys.exit(1)
+        
+        # 圧縮実行
+        result = compressor.compress_project(
+            project_path=project,
+            max_tokens=max_tokens,
+            format=format
+        )
+        
+        # 出力
+        output_path = project / output
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write(result)
+        
+        # 統計情報
+        lines = result.count('\n')
+        chars = len(result)
+        estimated_tokens = chars * 0.25  # 簡易推定
+        
+        click.echo(f"✅ 知識マップを生成しました: {output_path}")
+        click.echo(f"📊 統計:")
+        click.echo(f"   - 行数: {lines:,}")
+        click.echo(f"   - 文字数: {chars:,}")
+        click.echo(f"   - 推定トークン: {estimated_tokens:,.0f}")
+        click.echo(f"   - 圧縮率: {(1 - estimated_tokens/20000)*100:.1f}%")
+        
+        if format == "claude-code":
+            click.echo("\n💡 使用方法:")
+            click.echo("   1. Claude Codeを起動")
+            click.echo(f"   2. まず `{output}` を読む")
+            click.echo("   3. 必要に応じて詳細ファイルを読む")
+        
+    except ImportError:
+        click.echo("❌ 知識圧縮モジュールが見つかりません", err=True)
+        click.echo("💡 UKFを最新版に更新してください: ukf update run", err=True)
+        sys.exit(1)
+    except Exception as e:
+        click.echo(f"❌ 圧縮エラー: {e}", err=True)
+        sys.exit(1)
+
+
+@knowledge.command()
+@click.option("--interval", "-i", default=300, help="更新間隔（秒）")
+@click.option("--output", "-o", default="PROJECT_KNOWLEDGE_MAP.md", help="出力ファイル名")
+@click.option("--project-path", "-p", default=".", help="プロジェクトパス")
+def watch(interval: int, output: str, project_path: str):
+    """ファイル変更を監視して知識マップを自動更新"""
+    try:
+        from .core.compressor import KnowledgeCompressor
+        import time
+        from watchdog.observers import Observer
+        from watchdog.events import FileSystemEventHandler
+        
+        class UpdateHandler(FileSystemEventHandler):
+            def __init__(self, compressor, project_path, output):
+                self.compressor = compressor
+                self.project_path = project_path
+                self.output = output
+                self.last_update = 0
+            
+            def on_modified(self, event):
+                # 更新間隔をチェック
+                current_time = time.time()
+                if current_time - self.last_update < interval:
+                    return
+                
+                # 無視パターンチェック
+                if any(pattern in event.src_path for pattern in self.compressor.ignored_patterns):
+                    return
+                
+                click.echo(f"\n🔄 変更検出: {event.src_path}")
+                self._update_map()
+                self.last_update = current_time
+            
+            def _update_map(self):
+                try:
+                    result = self.compressor.compress_project(
+                        project_path=self.project_path,
+                        format="claude-code"
+                    )
+                    
+                    output_path = self.project_path / self.output
+                    with open(output_path, 'w', encoding='utf-8') as f:
+                        f.write(result)
+                    
+                    click.echo(f"✅ 知識マップを更新しました: {datetime.now().strftime('%H:%M:%S')}")
+                except Exception as e:
+                    click.echo(f"⚠️ 更新エラー: {e}")
+        
+        # 初期化
+        project = Path(project_path).resolve()
+        compressor = KnowledgeCompressor()
+        handler = UpdateHandler(compressor, project, output)
+        
+        # 初回生成
+        click.echo("🔍 初回知識マップを生成中...")
+        handler._update_map()
+        
+        # 監視開始
+        observer = Observer()
+        observer.schedule(handler, str(project), recursive=True)
+        observer.start()
+        
+        click.echo(f"👀 ファイル監視を開始しました（{interval}秒間隔）")
+        click.echo("終了するには Ctrl+C を押してください")
+        
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            observer.stop()
+            click.echo("\n👋 監視を終了しました")
+        observer.join()
+        
+    except ImportError as e:
+        if 'watchdog' in str(e):
+            click.echo("❌ watchdogがインストールされていません", err=True)
+            click.echo("💡 インストール: pip install watchdog", err=True)
+        else:
+            click.echo(f"❌ インポートエラー: {e}", err=True)
+        sys.exit(1)
+    except Exception as e:
+        click.echo(f"❌ 監視エラー: {e}", err=True)
+        sys.exit(1)
+
+
+@knowledge.command()
+@click.option("--project-path", "-p", default=".", help="プロジェクトパス")
+def status(project_path: str):
+    """知識圧縮の状態を確認"""
+    try:
+        from .core.compressor import KnowledgeCompressor
+        
+        project = Path(project_path).resolve()
+        knowledge_map = project / "PROJECT_KNOWLEDGE_MAP.md"
+        
+        click.echo("📊 知識圧縮状態:")
+        click.echo(f"📁 プロジェクト: {project.name}")
+        
+        if knowledge_map.exists():
+            stat = knowledge_map.stat()
+            mtime = datetime.fromtimestamp(stat.st_mtime)
+            age_hours = (datetime.now() - mtime).total_seconds() / 3600
+            
+            click.echo(f"📄 知識マップ: 存在")
+            click.echo(f"📅 最終更新: {mtime.strftime('%Y-%m-%d %H:%M:%S')}")
+            click.echo(f"⏱️  経過時間: {age_hours:.1f}時間")
+            click.echo(f"💾 サイズ: {stat.st_size:,} bytes")
+            
+            # 内容の簡易チェック
+            with open(knowledge_map, 'r', encoding='utf-8') as f:
+                content = f.read()
+                if '現在の問題' in content:
+                    error_count = content.count('ERROR') + content.count('Error')
+                    click.echo(f"🚨 エラー記録: {error_count}件")
+                if '現在のタスク' in content:
+                    task_count = content.count('- ') 
+                    click.echo(f"📋 タスク記録: 約{task_count}件")
+            
+            if age_hours > 24:
+                click.echo("\n⚠️ 知識マップが古くなっています")
+                click.echo("💡 更新コマンド: ukf knowledge compress")
+        else:
+            click.echo(f"❌ 知識マップが存在しません")
+            click.echo("💡 生成コマンド: ukf knowledge compress")
+        
+        # 設定ファイルチェック
+        config_files = ['.ukf/config.yaml', '.ukf/config.json', 'ukf.config.yaml']
+        for config_file in config_files:
+            if (project / config_file).exists():
+                click.echo(f"\n⚙️  設定ファイル: {config_file}")
+                break
+        
+    except Exception as e:
+        click.echo(f"❌ 状態確認エラー: {e}", err=True)
         sys.exit(1)
 
 

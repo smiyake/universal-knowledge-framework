@@ -14,12 +14,14 @@
 - 📄 **動的テンプレートエンジン** - コンテキスト認識テンプレート
 - 🌉 **ツール間連携アーキテクチャ** - Bridge Adapter・拡張基盤
 - 📊 **Git統合強化** - コミット履歴分析・自動バックアップ
+- 🗜️ **知識圧縮機能** - Claude Codeのトークン使用量を75%削減
 
 ## 特徴
 
 - **汎用性**: あらゆる業界・プロジェクトタイプに対応
 - **AI統合**: Claude Codeとの最適化された連携・開発支援
 - **Claude Code連携**: TodoRead/TodoWrite APIとの双方向同期 🆕
+- **知識圧縮**: プロジェクト情報を効率的に圧縮し、トークン使用量を大幅削減 🆕
 - **Obsidian連携**: 強力な文書管理・可視化機能
 - **動的テンプレート**: プロジェクト状況に応じた最適なテンプレート
 - **統計分析**: プロジェクト進捗・アクティビティの詳細分析
@@ -161,6 +163,27 @@ ukf claude export
 # JSONログをMarkdownに変換
 ukf claude2md -i claude_logs -o knowledge/Claude
 ```
+
+#### 知識圧縮機能（Claude Codeトークン最適化） 🆕
+```bash
+# プロジェクト知識を圧縮してClaude Code用に最適化
+ukf knowledge compress
+
+# カスタム設定で圧縮
+ukf knowledge compress --max-tokens 3000 --focus "errors,tasks"
+
+# ファイル監視・自動更新
+ukf knowledge watch --interval 300
+
+# 圧縮状態確認
+ukf knowledge status
+```
+
+**Claude Codeでの使用方法:**
+1. プロジェクトルートで `ukf knowledge compress` を実行
+2. `PROJECT_KNOWLEDGE_MAP.md` が生成される
+3. Claude Codeで最初にこのファイルを読む
+4. トークン使用量が約75%削減！
 
 ## 📋 更新・アップグレード
 
