@@ -145,6 +145,148 @@ def status():
 
 
 @main.group()
+def claude():
+    """Claude Code連携機能"""
+    pass
+
+
+@claude.command()
+@click.option("--tasks-json", "-t", help="タスクJSONデータ (TodoRead出力)")
+@click.option("--vault-path", "-v", help="ナレッジベースパス")
+@click.option("--auto-commit", is_flag=True, default=True, help="Git自動コミット")
+def sync(tasks_json: Optional[str], vault_path: Optional[str], auto_commit: bool):
+    """Claude Codeのタスクを同期します"""
+    try:
+        from .ai.claude_code_sync import ClaudeCodeSync
+        
+        sync_manager = ClaudeCodeSync(
+            vault_path=Path(vault_path) if vault_path else None,
+            auto_commit=auto_commit
+        )
+        
+        if tasks_json:
+            # タスクJSONが提供された場合
+            import json
+            tasks = json.loads(tasks_json)
+            sync_manager.sync_from_claude(tasks)
+            click.echo(f"✅ Claude → Knowledge Base: {len(tasks)}タスクを同期しました")
+        else:
+            # キャッシュから同期
+            cache_data = sync_manager._load_cache()
+            tasks = cache_data.get("tasks", [])
+            if tasks:
+                sync_manager.sync_from_claude(tasks)
+                click.echo(f"✅ キャッシュから{len(tasks)}タスクを同期しました")
+            else:
+                click.echo("⚠️ 同期するタスクがありません")
+                click.echo("💡 使用方法: ukf claude sync --tasks-json '<TodoRead出力>'")
+                
+    except Exception as e:
+        click.echo(f"❌ 同期エラー: {e}", err=True)
+        sys.exit(1)
+
+
+@claude.command()
+def init():
+    """Claude Code連携を初期化します"""
+    try:
+        from .ai.claude_code_sync import ClaudeCodeSync
+        
+        sync_manager = ClaudeCodeSync()
+        
+        # ナレッジベースディレクトリ作成
+        sync_manager.vault_path.mkdir(parents=True, exist_ok=True)
+        
+        # 初期タスクファイル作成
+        task_file = sync_manager.vault_path / sync_manager.task_file_name
+        if not task_file.exists():
+            initial_content = """# タスク管理
+
+Claude Code連携により自動管理されるタスクファイルです。
+
+## 使用方法
+
+1. Claude Codeでタスクを作成・更新
+2. `ukf claude sync`コマンドで同期
+3. このファイルに反映される
+
+---
+*Universal Knowledge Framework - Claude Code Integration*
+"""
+            with open(task_file, 'w', encoding='utf-8') as f:
+                f.write(initial_content)
+        
+        click.echo("✅ Claude Code連携を初期化しました")
+        click.echo(f"📁 ナレッジベース: {sync_manager.vault_path}")
+        click.echo(f"📝 タスクファイル: {task_file}")
+        click.echo("\n🎯 次のステップ:")
+        click.echo("1. Claude Codeでタスクを作成")
+        click.echo("2. TodoReadでタスクを取得")
+        click.echo("3. ukf claude sync --tasks-json '<タスクJSON>' で同期")
+        
+    except Exception as e:
+        click.echo(f"❌ 初期化エラー: {e}", err=True)
+        sys.exit(1)
+
+
+@claude.command()
+def status():
+    """Claude Code同期状態を確認します"""
+    try:
+        from .ai.claude_code_sync import ClaudeCodeSync
+        
+        sync_manager = ClaudeCodeSync()
+        status = sync_manager.get_sync_status()
+        
+        click.echo("🔍 Claude Code同期状態:")
+        click.echo(f"📁 ナレッジベース: {status['vault_path']}")
+        click.echo(f"📝 キャッシュファイル: {status['cache_file']}")
+        click.echo(f"🕒 最終同期: {status['last_sync']}")
+        click.echo(f"📊 タスク数: {status['total_tasks']}")
+        click.echo(f"🔄 自動コミット: {'有効' if status['auto_commit'] else '無効'}")
+        
+        # キャッシュ確認
+        if Path(status['cache_file']).exists():
+            click.echo("\n✅ キャッシュファイルが存在します")
+        else:
+            click.echo("\n⚠️ キャッシュファイルが存在しません")
+            click.echo("💡 Claude Codeでタスクを同期してください")
+        
+    except Exception as e:
+        click.echo(f"❌ 状態確認エラー: {e}", err=True)
+        sys.exit(1)
+
+
+@claude.command()
+@click.option("--vault-path", "-v", help="ナレッジベースパス")
+def export(vault_path: Optional[str]):
+    """ナレッジベースのタスクをClaude Code形式でエクスポート"""
+    try:
+        from .ai.claude_code_sync import ClaudeCodeSync
+        import json
+        
+        sync_manager = ClaudeCodeSync(
+            vault_path=Path(vault_path) if vault_path else None
+        )
+        
+        tasks = sync_manager.sync_to_claude()
+        
+        if tasks:
+            # JSON形式で出力（TodoWrite用）
+            output = json.dumps(tasks, ensure_ascii=False, indent=2)
+            click.echo(output)
+            
+            click.echo(f"\n✅ {len(tasks)}タスクをエクスポートしました", err=True)
+            click.echo("💡 出力をコピーしてClaude CodeのTodoWriteで使用してください", err=True)
+        else:
+            click.echo("⚠️ エクスポートするタスクがありません")
+            
+    except Exception as e:
+        click.echo(f"❌ エクスポートエラー: {e}", err=True)
+        sys.exit(1)
+
+
+@main.group()
 def task():
     """タスク管理"""
     pass

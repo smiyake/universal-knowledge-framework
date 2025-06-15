@@ -19,6 +19,7 @@
 
 - **汎用性**: あらゆる業界・プロジェクトタイプに対応
 - **AI統合**: Claude Codeとの最適化された連携・開発支援
+- **Claude Code連携**: TodoRead/TodoWrite APIとの双方向同期 🆕
 - **Obsidian連携**: 強力な文書管理・可視化機能
 - **動的テンプレート**: プロジェクト状況に応じた最適なテンプレート
 - **統計分析**: プロジェクト進捗・アクティビティの詳細分析
@@ -138,6 +139,21 @@ ukf bridge setup obsidian
 
 # データ同期
 ukf bridge sync --target obsidian
+```
+
+#### Claude Code連携 🆕
+```bash
+# Claude Code連携初期化
+ukf claude init
+
+# TodoReadタスクを同期
+ukf claude sync --tasks-json '[{"id":"1","content":"タスク","status":"pending","priority":"high"}]'
+
+# 同期状態確認
+ukf claude status
+
+# タスクをClaude Code形式でエクスポート
+ukf claude export
 ```
 
 #### ClaudeログのMarkdown変換
